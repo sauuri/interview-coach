@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 면접 질문 생성기</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root { --accent: #f59e0b; --bg: #080c14; --card: #0e1420; --border: #1e2a3a; --text: #c8d8f0; --muted: #4a6080; }
+    body { background: var(--bg); font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; color: var(--text); min-height: 100vh; }
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background: radial-gradient(ellipse at 20% 30%, #f59e0b12 0%, transparent 50%),
+                  radial-gradient(ellipse at 80% 70%, #fb923c0e 0%, transparent 50%);
+      pointer-events: none; z-index: 0;
+    }
+    .wrap { position: relative; z-index: 1; max-width: 800px; margin: 0 auto; padding: 0 20px 60px; }
+
+    .hero { text-align: center; padding: 60px 0 40px; }
+    .hero-badge { display: inline-block; background: var(--card); border: 1px solid var(--border); border-radius: 50px; padding: 5px 18px; font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+    .hero-badge span { color: var(--accent); }
+    .hero h1 { font-size: clamp(26px, 5vw, 40px); font-weight: 900; margin-bottom: 10px; }
+    .hero h1 em { font-style: normal; background: linear-gradient(135deg, #f59e0b, #fbbf24, #fde68a); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .hero p { font-size: 15px; color: var(--muted); }
+
+    .form-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 32px; margin-bottom: 20px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    @media (max-width: 540px) { .form-row { grid-template-columns: 1fr; } }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-size: 13px; font-weight: 700; color: var(--accent); margin-bottom: 8px; }
+    .optional { font-weight: 400; color: var(--muted); font-size: 11px; }
+    input[type=text], textarea { width: 100%; background: #060a10; border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; color: var(--text); font-size: 14px; font-family: inherit; transition: border-color 0.2s; }
+    input[type=text]:focus, textarea:focus { outline: none; border-color: var(--accent); }
+    textarea { min-height: 140px; resize: vertical; line-height: 1.7; }
+
+    .btn { width: 100%; padding: 16px; background: var(--accent); border: none; border-radius: 14px; color: #080c14; font-size: 16px; font-weight: 800; cursor: pointer; transition: all 0.2s; }
+    .btn:hover { opacity: 0.9; transform: translateY(-2px); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .loading { display: none; text-align: center; padding: 40px; }
+    .loading.show { display: block; }
+    .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .result { display: none; }
+    .result.show { display: block; }
+
+    .result-header { background: var(--card); border: 1px solid var(--accent)33; border-radius: 16px; padding: 20px 24px; margin-bottom: 14px; display: flex; align-items: center; gap: 16px; }
+    .result-header-icon { font-size: 36px; }
+    .result-header-text h2 { font-size: 18px; font-weight: 800; color: #e8f0ff; margin-bottom: 4px; }
+    .result-header-text p { font-size: 13px; color: var(--muted); }
+
+    .q-list { display: flex; flex-direction: column; gap: 12px; }
+    .q-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 22px; transition: border-color 0.2s; }
+    .q-card:hover { border-color: var(--accent)44; }
+    .q-top { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 12px; }
+    .q-num { width: 28px; height: 28px; border-radius: 8px; background: var(--accent)18; border: 1px solid var(--accent)33; color: var(--accent); font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+    .q-text { font-size: 15px; font-weight: 700; color: #e8f0ff; line-height: 1.5; flex: 1; }
+    .q-category { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 50px; margin-bottom: 10px; }
+    .cat-직무역량 { background: #6366f120; color: #818cf8; border: 1px solid #6366f130; }
+    .cat-인성 { background: #10b98120; color: #34d399; border: 1px solid #10b98130; }
+    .cat-상황판단 { background: #f59e0b20; color: #fbbf24; border: 1px solid #f59e0b30; }
+    .cat-자소서기반 { background: #f43f5e20; color: #fb7185; border: 1px solid #f43f5e30; }
+    .cat-회사이해 { background: #06b6d420; color: #22d3ee; border: 1px solid #06b6d430; }
+    .q-tip { font-size: 13px; color: var(--muted); line-height: 1.6; padding: 10px 14px; background: #060a10; border-radius: 8px; border-left: 2px solid var(--accent)44; }
+
+    .retry-btn { display: block; width: 100%; padding: 14px; margin-top: 14px; background: transparent; border: 1px solid var(--border); border-radius: 12px; color: var(--muted); font-size: 14px; cursor: pointer; transition: all 0.2s; }
+    .retry-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .error { background: #1a0a10; border: 1px solid #f43f5e44; border-radius: 14px; padding: 16px 20px; color: #f87171; font-size: 14px; display: none; }
+    .error.show { display: block; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="hero-badge">✦ <span>AI</span> · GPT-4o-mini 기반</div>
+    <h1>AI <em>면접 질문 생성기</em></h1>
+    <p>직무와 회사를 입력하면 예상 면접 질문 10개를 뽑아줘요</p>
+  </div>
+
+  <div class="form-card">
+    <div class="form-row">
+      <div class="form-group" style="margin-bottom:0">
+        <label>지원 직무</label>
+        <input type="text" id="position" placeholder="예: AI 연구원, 백엔드 개발자">
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label>회사명</label>
+        <input type="text" id="company" placeholder="예: 네이버, 카카오, 삼성전자">
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:16px">
+      <label>자소서 <span class="optional">(선택 — 넣으면 자소서 기반 질문도 생성)</span></label>
+      <textarea id="cover-letter" placeholder="자소서 내용을 붙여넣으면 더 맞춤화된 질문이 생성됩니다..."></textarea>
+    </div>
+    <button class="btn" id="generate-btn" onclick="generate()">질문 생성하기 →</button>
+  </div>
+
+  <div class="error" id="error"></div>
+
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <p style="color:var(--muted);font-size:14px">면접관 AI가 질문을 준비하는 중...</p>
+  </div>
+
+  <div class="result" id="result">
+    <div class="result-header">
+      <div class="result-header-icon">🎯</div>
+      <div class="result-header-text">
+        <h2 id="r-title">예상 면접 질문</h2>
+        <p id="r-subtitle"></p>
+      </div>
+    </div>
+    <div class="q-list" id="q-list"></div>
+    <button class="retry-btn" onclick="retry()">🔄 다시 생성하기</button>
+  </div>
+</div>
+
+<script>
+  async function generate() {
+    const position = document.getElementById('position').value.trim();
+    const company = document.getElementById('company').value.trim();
+    const coverLetter = document.getElementById('cover-letter').value.trim();
+    const err = document.getElementById('error');
+    err.classList.remove('show');
+
+    if (!position) { showError('지원 직무를 입력해주세요.'); return; }
+    if (!company) { showError('회사명을 입력해주세요.'); return; }
+
+    document.getElementById('generate-btn').disabled = true;
+    document.getElementById('loading').classList.add('show');
+    document.getElementById('result').classList.remove('show');
+
+    try {
+      const res = await fetch('/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ position, company, cover_letter: coverLetter })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || '생성 중 오류가 발생했습니다.');
+      showResult(data, position, company);
+    } catch (e) {
+      showError(e.message);
+    } finally {
+      document.getElementById('generate-btn').disabled = false;
+      document.getElementById('loading').classList.remove('show');
+    }
+  }
+
+  function showResult(data, position, company) {
+    document.getElementById('r-title').textContent = `${company} ${position} 예상 질문`;
+    document.getElementById('r-subtitle').textContent = `총 ${(data.questions || []).length}개 · 답변 팁 포함`;
+    const list = document.getElementById('q-list');
+    list.innerHTML = (data.questions || []).map((q, i) => `
+      <div class="q-card">
+        <div class="q-top">
+          <div class="q-num">${i + 1}</div>
+          <div class="q-text">${q.question}</div>
+        </div>
+        <span class="q-category cat-${q.category}">${q.category}</span>
+        <div class="q-tip">💡 ${q.tip}</div>
+      </div>
+    `).join('');
+    document.getElementById('result').classList.add('show');
+  }
+
+  function showError(msg) {
+    const err = document.getElementById('error');
+    err.textContent = msg;
+    err.classList.add('show');
+  }
+
+  function retry() {
+    document.getElementById('result').classList.remove('show');
+    document.getElementById('position').value = '';
+    document.getElementById('company').value = '';
+    document.getElementById('cover-letter').value = '';
+    document.getElementById('error').classList.remove('show');
+  }
+</script>
+</body>
+</html>
